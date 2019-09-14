@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script type="application/javascript" src="index.js"></script>
+    <title>Title</title>
+    <style>
+        body {
+            margin: 0;
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .header {
+            background-color: #f4f4f4;
+            box-shadow: 0 2px 6px #cfcfcf;
+            padding: 56px 51px 20px 51px;
+        }
+        .search, .controls {
+            display: inline-block;
+        }
+        .search {
+            float: right;
+        }
+        .controls button {
+            background-color: #0271c7;
+            color: #fff;
+            width: 80px;
+            height: 25px;
+            margin-right: 10px;
+            border-radius: 2px;
+            border-style: none;
+            box-shadow: 0 2px 6px #cfcfcf;
+        }
+        .container {
+            padding: 15px 50px 0 50px;
+        }
+        .nav-btn {
+            background-color: #fff;
+            color: #666;
+            height: 17px;
+            text-align: center;
+            display: inline;
+            box-shadow: inset 0px 0px 7px #9e9e9e;
+            border-radius: 4px;
+            padding-bottom: 5px;
+            padding-top: 5px;
+            padding-left: 8px;
+            padding-right: 8px;
+            margin-right: 8px;
+        }
+        .date {
+            margin-right: 8px;
+        }
+        .calendar {
+            margin-top: 15px;
+        }
+        .calendar table {
+            border-collapse: collapse;
+        }
+        #calend td.cell {
+            width: 128px;
+            font-size: 14px;
+            color: #999999;
+            min-height: 110px;
+            height: 110px;
+            border: 1px solid #ebebeb;
+            padding-top: 10px;
+            padding-left: 10px;
+        }
+        div.cell-number {
+            display: inline-block;
+        }
+        div.events {
+            height: 80%;
+        }
+    </style>
+</head>
+<script type="application/javascript">
+    const months = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль',
+        'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+    const weekDays = [
+        'Воскресение', 'Понедельник', 'Вторник', 'Среда',
+        'Четверг', 'Пятница', 'Суббота'
+    ];
+    var currentCalendarMonth = null;
+
+    function CalendarDay(date) {
+        this.date = date;
+        this.from = resetTime(date);
+        var to = resetTime(date);
+        to = addDays( to, 1 );
+        this.to = to - 1;
+        this.events = [];
+        this.weekDay = weekDays[date.getDay()];
+    }
+
+    function addDays( date, count ) {
+        const dayInMs = 24 * 60 * 60 * 1000;
+        return new Date( date.getTime() + ( count * dayInMs ) );
+    }
+
+    function resetTime( date ) {
+        const reset = new Date(date);
+        reset.setHours(0);
+        reset.setMinutes(0);
+        reset.setSeconds(0);
+        reset.setMilliseconds(0);
+        return reset;
+    }
+
+    function buildFromTo(month) {
+        var start = new Date();
+        var end = new Date();
+        var diff = null;
+        if (month) {
+            start.setMonth(month);
+            end.setMonth(month);
+        }
+
+        start.setDate(1);
+        const startWeekDay = start.getDay();
+        if (startWeekDay === 0) {
+            diff = 6;
+        } else if ( startWeekDay > 1 ) {
+            diff = startWeekDay - 1;
+        }
+        const from = addDays(start, -1 * diff);
+
+        end.setDate(1);
+        end.setMonth(end.getMonth() + 1);
+        end = addDays(end, -1);
+        const endWeekDay = end.getDay();
+        if ( endWeekDay > 0 ) {
+            diff = 7 - endWeekDay;
+        } else {
+            diff = 0;
+        }
+        const to = addDays( end, diff );
+        return { from: from, to: to };
+    }
+
+    function buildDays(month) {
+        const weeks = [];
+        const period = buildFromTo(month);
+        var curr = period.from;
+        while ( curr <= period.to ) {
+            var ind = 0;
+            var week = [];
+            while (ind < 7) {
+                ind += 1;
+                week.push(new CalendarDay(curr));
+                curr = addDays( curr, 1 );
+            }
+            weeks.push(week);
+        }
+        return weeks;
+    }
+
+    function drawDay( day, showDayOfWeek ) {
+        var number = ( showDayOfWeek ? day.weekDay + ', ' : '' ) + day.date.getDate();
+        var events = '<div class="events">';
+        day.events.forEach( function( value ) {
+            events += '<span class="event title">' + value.name + '</span>';
+            events += '<div class="event participants">' + value.participants + '</div>';
+        } );
+        events += '</div>';
+        return [
+            '<td class="cell">',
+            '<div class="cell-number">',number, '</div>',
+            events,
+            '</td>'
+        ].join('');
+    }
+
+    function drawWeek( week, showDayOfWeek ) {
+        var content = '';
+        var l = week.length;
+        for (var i=0;i<l;i++) {
+            content += drawDay(week[i], showDayOfWeek);
+        }
+        return '<tr>' + content + '</tr>';
+    }
+
+    function drawCalendar(month) {
+        const weeks = buildDays(month);
+        const calendar = document.querySelector('#calend');
+        var content = '';
+        const l = weeks.length;
+        for (var i=0;i<l;i++) {
+            content += drawWeek(weeks[i], i === 0);
+        }
+        calendar.innerHTML = content;
+        currentCalendarMonth = month;
+    }
+    function updateDisplayDate( date ) {
+        const dateStr = [
+            months[ date.getMonth() ],
+            date.getFullYear()
+        ].join(' ');
+        document.querySelector('.date').textContent = dateStr;
+    }
+    function nextMonth() {
+        var date = new Date();
+        date.setMonth(date.getMonth() + 1);
+        if (currentCalendarMonth) {
+            date.setMonth(currentCalendarMonth + 1);
+        }
+        drawCalendar(date.getMonth());
+        updateDisplayDate(date);
+    }
+
+    function prevMonth() {
+        var date = new Date();
+        date.setMonth(date.getMonth() - 1);
+        if (currentCalendarMonth) {
+            date.setMonth(currentCalendarMonth - 1);
+        }
+        drawCalendar(date.getMonth());
+        updateDisplayDate(date);
+    }
+
+    function currentMonth() {
+        drawCalendar((new Date).getMonth());
+        updateDisplayDate(new Date);
+    }
+
+    function _handleCellClick( cell ) {
+        debugger;
+    }
+
+    function startCalendar() {
+        const today = new Date();
+        updateDisplayDate(today);
+        const prevBtn = document.querySelector('.nav-btn.left');
+        prevBtn.addEventListener('click', prevMonth);
+        const nextBtn = document.querySelector('.nav-btn.right');
+        nextBtn.addEventListener('click', nextMonth);
+        const currBtn = document.querySelector('.nav-btn.today');
+        currBtn.addEventListener('click', currentMonth);
+        drawCalendar();
+
+        document.addEventListener('click', function( event ) {
+            const target = event.target;
+            if (target.tagName.toLowerCase() === 'td' ) {
+                _handleCellClick(target);
+            }
+            if (['events', 'cell-number'].indexOf(target.className) >=0) {
+                _handleCellClick(target.parentElement);
+            }
+        });
+    }
+    window.onload = startCalendar;
+</script>
+<body>
+    <div id="app">
+        <div class="header">
+            <div class="controls">
+                <button>Добавить</button>
+                <button>Обновить</button>
+            </div>
+            <div class="search">
+                <i></i>
+                <input type="text" placeholder="Событие, дата или участник">
+            </div>
+        </div>
+        <div class="container">
+            <div class="navigation">
+                <div class="nav-btn left">
+                    <
+                </div>
+                <span class="date"></span>
+                <div class="nav-btn right">
+                    >
+                </div>
+                <div class="nav-btn today">
+                    Сегодня
+                </div>
+            </div>
+            <div class="calendar">
+                <table>
+                    <tbody id="calend">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
