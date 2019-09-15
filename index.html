@@ -10,6 +10,8 @@
             max-width: 1000px;
             margin-left: auto;
             margin-right: auto;
+            font-family: sans-serif;
+            box-sizing: border-box;
         }
         .header {
             background-color: #f4f4f4;
@@ -68,11 +70,69 @@
             padding-top: 10px;
             padding-left: 10px;
         }
+        #calend td.cell.current {
+            background-color: #f4f4f4;
+        }
+        #calend td.cell.active {
+            background-color: #c2e4fe;
+        }
+        #calend td.cell.current .cell-number {
+            font-weight: bold;
+        }
         div.cell-number {
             display: inline-block;
         }
         div.events {
             height: 80%;
+        }
+        .modal-form {
+            display: none;
+            box-shadow: 0px 0px 8px #ededed;
+            border: 1px solid #cfcfcf;
+            width: 303px;
+            height: 330px;
+            padding: 10px 10px 65px 20px;
+            box-sizing: border-box;
+            background-color: #fff;
+            position: absolute;
+            left: 0px;
+            top: 0px;
+        }
+        .modal-close {
+            display: block;
+            text-align: right;
+            width: 100%;
+            font-size: 9px;
+            margin-bottom: 5px;
+        }
+        .input-field {
+            width: 98%;
+            border: none;
+            box-sizing: border-box;
+            margin: 0 2px;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+        }
+        .text-field {
+            resize: none;
+            width: 98%;
+            height: 97%;
+            border: none;
+            box-sizing: border-box;
+            margin: 2px 2px;
+        }
+        .field-container.descr {
+            margin-top: 30px;
+            max-height: 115px;
+            height: 115px;
+        }
+        .field-container {
+            margin-bottom: 5px;
+            box-shadow: inset 0px 0px 3px #9e9e9e;
+            width: 255px;
+            border-radius: 4px;
+            padding: 2px;
         }
     </style>
 </head>
@@ -86,6 +146,7 @@
         'Четверг', 'Пятница', 'Суббота'
     ];
     var currentCalendarMonth = null;
+    var prevActiveCell = null;
 
     function CalendarDay(date) {
         this.date = date;
@@ -109,6 +170,12 @@
         reset.setSeconds(0);
         reset.setMilliseconds(0);
         return reset;
+    }
+
+    function isSameDate( a, b ) {
+        return a.getDate() === b.getDate() &&
+            a.getMonth() === b.getMonth() &&
+            a.getFullYear() === b.getFullYear();
     }
 
     function buildFromTo(month) {
@@ -160,6 +227,7 @@
     }
 
     function drawDay( day, showDayOfWeek ) {
+        var now = new Date();
         var number = ( showDayOfWeek ? day.weekDay + ', ' : '' ) + day.date.getDate();
         var events = '<div class="events">';
         day.events.forEach( function( value ) {
@@ -167,8 +235,12 @@
             events += '<div class="event participants">' + value.participants + '</div>';
         } );
         events += '</div>';
+        var cellClasses = 'cell';
+        if ( isSameDate(day.date, now) ) {
+            cellClasses+= ' current';
+        }
         return [
-            '<td class="cell">',
+            '<td class="', cellClasses, '">',
             '<div class="cell-number">',number, '</div>',
             events,
             '</td>'
@@ -195,13 +267,14 @@
         calendar.innerHTML = content;
         currentCalendarMonth = month;
     }
+
     function updateDisplayDate( date ) {
-        const dateStr = [
+        document.querySelector('.date').textContent = [
             months[ date.getMonth() ],
             date.getFullYear()
         ].join(' ');
-        document.querySelector('.date').textContent = dateStr;
     }
+
     function nextMonth() {
         var date = new Date();
         date.setMonth(date.getMonth() + 1);
@@ -227,8 +300,24 @@
         updateDisplayDate(new Date);
     }
 
-    function _handleCellClick( cell ) {
+    function showModalForm(cell) {
         debugger;
+        var modal = document.querySelector('.modal-form');
+        var clModal = modal.cloneNode(true);
+        cell.appendChild(clModal);
+        var cellRect = cell.getClientRects();
+        clModal.style.left = cellRect[0].left + cell.clientWidth + 5 + 'px';
+        clModal.style.top = cellRect[0].top + 10 + 'px';
+        clModal.style.display = 'block';
+    }
+
+    function _handleCellClick( cell ) {
+        if ( prevActiveCell ) {
+            prevActiveCell.className = prevActiveCell.className.replace( ' active', '' );
+        }
+        cell.className += ' active';
+        prevActiveCell = cell;
+        showModalForm(cell);
     }
 
     function startCalendar() {
@@ -286,6 +375,23 @@
                 </table>
             </div>
         </div>
+    </div>
+    <div class="modal-form">
+        <span class="modal-close">х</span>
+        <form action="">
+            <div class="field-container">
+                <input class="input-field" type="text" placeholder="Событие" />
+            </div>
+            <div class="field-container">
+                <input class="input-field" type="text" placeholder="День, месяц, год" />
+            </div>
+            <div class="field-container">
+                <input class="input-field" type="text" placeholder="Участиники" />
+            </div>
+            <div class="field-container descr">
+                <textarea class="text-field" placeholder="Описание"></textarea>
+            </div>
+        </form>
     </div>
 </body>
 </html>
