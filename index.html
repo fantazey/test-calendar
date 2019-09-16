@@ -79,6 +79,9 @@
         #calend td.cell.current .cell-number {
             font-weight: bold;
         }
+        .events .event.title {
+            font-weight: bold;
+        }
         div.cell-number {
             display: inline-block;
         }
@@ -98,7 +101,7 @@
             left: 0px;
             top: 0px;
         }
-        .modal-close {
+        .modal-close.icon {
             display: block;
             text-align: right;
             width: 100%;
@@ -147,20 +150,41 @@
     ];
     var currentCalendarMonth = null;
     var prevActiveCell = null;
+    var calendarItems = [];
 
-    function CalendarDay(date) {
+    function CalendarDay(date, events) {
+        this.id = [
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate()
+        ].join('_');
         this.date = date;
         this.from = resetTime(date);
         var to = resetTime(date);
         to = addDays( to, 1 );
         this.to = to - 1;
         this.events = [];
+        if (events) {
+            this.events = events;
+        }
         this.weekDay = weekDays[date.getDay()];
     }
 
     function addDays( date, count ) {
         const dayInMs = 24 * 60 * 60 * 1000;
         return new Date( date.getTime() + ( count * dayInMs ) );
+    }
+
+    function getDayById(id) {
+        var result = null;
+        calendarItems.forEach( function(week) {
+            week.forEach( function( day ) {
+                if ( day.id === id ) {
+                    result = day;
+                }
+            } );
+        } );
+        return result;
     }
 
     function resetTime( date ) {
@@ -240,7 +264,7 @@
             cellClasses+= ' current';
         }
         return [
-            '<td class="', cellClasses, '">',
+            '<td class="', cellClasses, '" data-id="', day.id,'">',
             '<div class="cell-number">',number, '</div>',
             events,
             '</td>'
@@ -256,8 +280,13 @@
         return '<tr>' + content + '</tr>';
     }
 
-    function drawCalendar(month) {
-        const weeks = buildDays(month);
+    function drawCalendar(month, useOldDays) {
+        var weeks;
+        if (useOldDays) {
+            weeks = calendarItems;
+        } else {
+            weeks = buildDays(month);
+        }
         const calendar = document.querySelector('#calend');
         var content = '';
         const l = weeks.length;
@@ -265,7 +294,10 @@
             content += drawWeek(weeks[i], i === 0);
         }
         calendar.innerHTML = content;
-        currentCalendarMonth = month;
+        if (month) {
+            currentCalendarMonth = month;
+        }
+        calendarItems = weeks;
     }
 
     function updateDisplayDate( date ) {
@@ -276,32 +308,74 @@
     }
 
     function nextMonth() {
+        debugger
         var date = new Date();
         date.setMonth(date.getMonth() + 1);
         if (currentCalendarMonth) {
             date.setMonth(currentCalendarMonth + 1);
         }
-        drawCalendar(date.getMonth());
+        if (!_loadFromLS(date)) {
+            drawCalendar(date.getMonth());
+        }
         updateDisplayDate(date);
     }
 
     function prevMonth() {
+        debugger
         var date = new Date();
         date.setMonth(date.getMonth() - 1);
         if (currentCalendarMonth) {
             date.setMonth(currentCalendarMonth - 1);
         }
-        drawCalendar(date.getMonth());
+        if (!_loadFromLS(date)) {
+            drawCalendar(date.getMonth());
+        }
         updateDisplayDate(date);
     }
 
     function currentMonth() {
-        drawCalendar((new Date).getMonth());
+        if (!_loadFromLS((new Date))) {
+            drawCalendar((new Date).getMonth());
+        }
         updateDisplayDate(new Date);
     }
 
+    function getValueBySelector(src, selector, def) {
+        var node = src.querySelector(selector);
+        if ( node && node.value ) {
+            return node.value;
+        }
+        return def || '';
+    }
+
+    function resetField(src, selector) {
+        var node = src.querySelector(selector);
+        if ( node && node.value ) {
+            return node.value = '';
+        }
+    }
+
+    function removeModalForm() {
+        document.querySelectorAll('.calendar .modal-form').forEach(x => x.remove());
+    }
+
+    function addEvent( cell ) {
+        var day = getDayById(cell.dataset.id);
+        var modal = cell.querySelector('.modal-form');
+        var eventName = getValueBySelector( modal, '.event' );
+        var participants = getValueBySelector(modal, '.participants');
+        var description = getValueBySelector(modal, '.description');
+        day.events.push( {
+            name: eventName,
+            participants: participants,
+            description: description
+        } );
+        _saveToLS(day.date.getMonth());
+        drawCalendar(null, true);
+    }
+
     function showModalForm(cell) {
-        debugger;
+        removeModalForm();
         var modal = document.querySelector('.modal-form');
         var clModal = modal.cloneNode(true);
         cell.appendChild(clModal);
@@ -312,12 +386,43 @@
     }
 
     function _handleCellClick( cell ) {
+        if ( cell.className.indexOf( 'active' ) >=0 ) {
+            removeModalForm();
+            cell.className = cell.className.replace( ' active', '' );
+            return;
+        }
         if ( prevActiveCell ) {
             prevActiveCell.className = prevActiveCell.className.replace( ' active', '' );
         }
         cell.className += ' active';
         prevActiveCell = cell;
         showModalForm(cell);
+    }
+
+    function _loadFromLS(date) {
+        var calendData = localStorage.getItem('calend_' + date.getMonth());
+        if (!calendData) {
+            return false;
+        }
+        var normalizedData = JSON.parse(calendData);
+        var weeks = [];
+        for (var i=0;i<normalizedData.length;i++) {
+            var normalizedWeek = normalizedData[i];
+            var week = [];
+            for (var j=0;j<normalizedWeek.length;j++) {
+                var day = normalizedWeek[j];
+                week.push(new CalendarDay(new Date(day.date), day.events))
+            }
+            weeks.push(week);
+        }
+        calendarItems = weeks;
+        drawCalendar(date.getMonth(), true);
+        return true;
+    }
+
+    function _saveToLS(month) {
+        var serializedData = JSON.stringify(calendarItems);
+        localStorage.setItem('calend_' + month, serializedData);
     }
 
     function startCalendar() {
@@ -329,15 +434,23 @@
         nextBtn.addEventListener('click', nextMonth);
         const currBtn = document.querySelector('.nav-btn.today');
         currBtn.addEventListener('click', currentMonth);
-        drawCalendar();
-
+        if (!_loadFromLS(today)) {
+            drawCalendar();
+        }
         document.addEventListener('click', function( event ) {
             const target = event.target;
-            if (target.tagName.toLowerCase() === 'td' ) {
+            if (target.tagName.toLowerCase() === 'td') {
                 _handleCellClick(target);
             }
             if (['events', 'cell-number'].indexOf(target.className) >=0) {
                 _handleCellClick(target.parentElement);
+            }
+
+            if (target.className.split(' ').indexOf('modal-close') >= 0) {
+                removeModalForm();
+            }
+            if (target.className.split(' ').indexOf('add-event') >=0) {
+                addEvent(target.parentElement.parentElement.parentElement);
             }
         });
     }
@@ -377,20 +490,22 @@
         </div>
     </div>
     <div class="modal-form">
-        <span class="modal-close">х</span>
+        <span class="modal-close icon">х</span>
         <form action="">
             <div class="field-container">
-                <input class="input-field" type="text" placeholder="Событие" />
+                <input class="input-field event" type="text" placeholder="Событие" />
             </div>
             <div class="field-container">
-                <input class="input-field" type="text" placeholder="День, месяц, год" />
+                <input class="input-field date" type="text" placeholder="День, месяц, год" />
             </div>
             <div class="field-container">
-                <input class="input-field" type="text" placeholder="Участиники" />
+                <input class="input-field participants" type="text" placeholder="Участиники" />
             </div>
             <div class="field-container descr">
-                <textarea class="text-field" placeholder="Описание"></textarea>
+                <textarea class="text-field description" placeholder="Описание"></textarea>
             </div>
+            <button class="add-event">Готово</button>
+            <button class="modal-close">Отмена</button>
         </form>
     </div>
 </body>
