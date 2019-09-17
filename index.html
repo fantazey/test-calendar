@@ -152,9 +152,33 @@
         'Воскресение', 'Понедельник', 'Вторник', 'Среда',
         'Четверг', 'Пятница', 'Суббота'
     ];
-    var currentCalendarMonth = null;
-    var prevActiveCell = null;
-    var calendarItems = [];
+    let currentCalendarMonth = null;
+    let prevActiveCell = null;
+    let calendarItems = [];
+    let searchEvents = [];
+
+    /*
+    Time functions
+
+    */
+    function resetTime( date ) {
+        const reset = new Date(date);
+        reset.setHours(0);
+        reset.setMinutes(0);
+        reset.setSeconds(0);
+        reset.setMilliseconds(0);
+        return reset;
+    }
+    function isSameDate( a, b ) {
+        return a.getDate() === b.getDate() &&
+            a.getMonth() === b.getMonth() &&
+            a.getFullYear() === b.getFullYear();
+    }
+    function addDays(date, count) {
+        const dayInMs = 24 * 60 * 60 * 1000;
+        return new Date(date.getTime() + (count * dayInMs));
+    }
+
 
     function CalendarDay(date, events) {
         this.id = [
@@ -164,7 +188,7 @@
         ].join('_');
         this.date = date;
         this.from = resetTime(date);
-        var to = resetTime(date);
+        let to = resetTime(date);
         to = addDays( to, 1 );
         this.to = to - 1;
         this.events = [];
@@ -173,16 +197,10 @@
         }
         this.weekDay = weekDays[date.getDay()];
     }
-
-    function addDays( date, count ) {
-        const dayInMs = 24 * 60 * 60 * 1000;
-        return new Date( date.getTime() + ( count * dayInMs ) );
-    }
-
     function getDayById(id) {
-        var result = null;
-        calendarItems.forEach( function(week) {
-            week.forEach( function( day ) {
+        let result = null;
+        calendarItems.forEach( week =>  {
+            week.forEach( day => {
                 if ( day.id === id ) {
                     result = day;
                 }
@@ -191,30 +209,19 @@
         return result;
     }
 
-    function resetTime( date ) {
-        const reset = new Date(date);
-        reset.setHours(0);
-        reset.setMinutes(0);
-        reset.setSeconds(0);
-        reset.setMilliseconds(0);
-        return reset;
-    }
-
-    function isSameDate( a, b ) {
-        return a.getDate() === b.getDate() &&
-            a.getMonth() === b.getMonth() &&
-            a.getFullYear() === b.getFullYear();
-    }
-
+    /**
+     * Create date range for build calendar table
+     * @param {Number} month
+     * @returns {{from: Date, to: Date}}
+     */
     function buildFromTo(month) {
-        var start = new Date();
-        var end = new Date();
-        var diff = null;
+        let start = new Date();
+        let end = new Date();
+        let diff = null;
         if (month) {
             start.setMonth(month);
             end.setMonth(month);
         }
-
         start.setDate(1);
         const startWeekDay = start.getDay();
         if (startWeekDay === 0) {
@@ -237,13 +244,18 @@
         return { from: from, to: to };
     }
 
+    /**
+     * Build array of days for every week in range
+     * @param {Number} month
+     * @returns {Array}
+     */
     function buildDays(month) {
         const weeks = [];
         const period = buildFromTo(month);
-        var curr = period.from;
+        let curr = period.from;
         while ( curr <= period.to ) {
-            var ind = 0;
-            var week = [];
+            let ind = 0;
+            let week = [];
             while (ind < 7) {
                 ind += 1;
                 week.push(new CalendarDay(curr));
@@ -254,16 +266,22 @@
         return weeks;
     }
 
-    function drawDay( day, showDayOfWeek ) {
-        var now = new Date();
-        var number = ( showDayOfWeek ? day.weekDay + ', ' : '' ) + day.date.getDate();
-        var events = '<div class="events">';
-        day.events.forEach( function( value, index ) {
+    /**
+     * Draw single calendar day with events
+     * @param {CalendarDay} day
+     * @param {Boolean} showDayOfWeek - for first row showed days of week
+     * @returns {string}
+     */
+    function drawDay(day, showDayOfWeek) {
+        let now = new Date();
+        let number = ( showDayOfWeek ? day.weekDay + ', ' : '' ) + day.date.getDate();
+        let events = '<div class="events">';
+        day.events.forEach( ( value, index ) => {
             events += '<span class="event title" data-event="' +index + '">' + value.name + '</span>';
             events += '<div class="event participants">' + value.participants + '</div>';
         } );
         events += '</div>';
-        var cellClasses = 'cell';
+        let cellClasses = 'cell';
         if ( isSameDate(day.date, now) ) {
             cellClasses+= ' current';
         }
@@ -275,26 +293,32 @@
         ].join('');
     }
 
-    function drawWeek( week, showDayOfWeek ) {
-        var content = '';
-        var l = week.length;
-        for (var i=0;i<l;i++) {
+    /**
+     *
+     * @param {Array.<CalendarDay>} week
+     * @param {Boolean} showDayOfWeek
+     * @returns {string}
+     */
+    function drawWeek(week, showDayOfWeek) {
+        let content = '';
+        let l = week.length;
+        for (let i=0;i<l;i++) {
             content += drawDay(week[i], showDayOfWeek);
         }
         return '<tr>' + content + '</tr>';
     }
 
     function drawCalendar(month, useOldDays) {
-        var weeks;
+        let weeks;
         if (useOldDays) {
             weeks = calendarItems;
         } else {
             weeks = buildDays(month);
         }
         const calendar = document.querySelector('#calend');
-        var content = '';
+        let content = '';
         const l = weeks.length;
-        for (var i=0;i<l;i++) {
+        for (let i=0;i<l;i++) {
             content += drawWeek(weeks[i], i === 0);
         }
         calendar.innerHTML = content;
@@ -311,107 +335,55 @@
         ].join(' ');
     }
 
+    function changeMonth(direction) {
+        const date = new Date();
+        if (direction) {
+            date.setMonth(date.getMonth() + direction);
+            if (currentCalendarMonth) {
+                date.setMonth(currentCalendarMonth + direction);
+            }
+        }
+        if (!_loadFromLS(date)) {
+            drawCalendar(date.getMonth());
+        }
+        updateDisplayDate(date);
+    }
+
     function nextMonth() {
-        var date = new Date();
-        date.setMonth(date.getMonth() + 1);
-        if (currentCalendarMonth) {
-            date.setMonth(currentCalendarMonth + 1);
-        }
-        if (!_loadFromLS(date)) {
-            drawCalendar(date.getMonth());
-        }
-        updateDisplayDate(date);
+        changeMonth(+1);
     }
-
     function prevMonth() {
-        var date = new Date();
-        date.setMonth(date.getMonth() - 1);
-        if (currentCalendarMonth) {
-            date.setMonth(currentCalendarMonth - 1);
-        }
-        if (!_loadFromLS(date)) {
-            drawCalendar(date.getMonth());
-        }
-        updateDisplayDate(date);
+        changeMonth(-1);
+    }
+    function currentMonth() {
+        changeMonth(0);
     }
 
-    function currentMonth() {
-        if (!_loadFromLS((new Date))) {
-            drawCalendar((new Date).getMonth());
-        }
-        updateDisplayDate(new Date);
-    }
 
     function getValueBySelector(src, selector, def) {
-        var node = src.querySelector(selector);
+        const node = src.querySelector(selector);
         if ( node && node.value ) {
             return node.value;
         }
         return def || '';
     }
-
     function setValueBySelector(src, selector, value) {
-        var node = src.querySelector(selector);
+        const node = src.querySelector(selector);
         if ( node ) {
             node.value = value;
         }
     }
-
     function toggleDisableField(src, selector) {
-        var field = src.querySelector(selector);
+        const field = src.querySelector(selector);
         if ( field ) {
             field.disabled = !field.disabled;
         }
     }
-
-    function resetField(src, selector) {
-        var node = src.querySelector(selector);
-        if ( node && node.value ) {
-            return node.value = '';
-        }
-    }
-
     function removeModalForm() {
         document.querySelectorAll('.calendar .modal-form').forEach(function(modal) {
             modal.remove()
         });
     }
-
-    function addEvent( cell ) {
-        var day = getDayById(cell.dataset.id);
-        var modal = cell.querySelector('.modal-form');
-        var eventName = getValueBySelector( modal, '.event' );
-        var participants = getValueBySelector(modal, '.participants');
-        var description = getValueBySelector(modal, '.description');
-        var editableEventId = getValueBySelector(modal, '.edit-event-id');
-        var event = null;
-        if ( editableEventId ) {
-            event = day.events[editableEventId];
-            event.description = description;
-        } else {
-            day.events.push( {
-                name: eventName,
-                participants: participants,
-                description: description
-            } );
-        }
-        _saveToLS(day.date.getMonth());
-        drawCalendar(null, true);
-    }
-
-    function editEvent( cell, id ) {
-        var day = getDayById(cell.dataset.id);
-        var event = day.events[ id ];
-        showModalForm(cell);
-        var modal = cell.querySelector('.modal-form');
-        setValueBySelector(modal, '.event', event.name);
-        toggleDisableField(modal, '.event');
-        setValueBySelector(modal, '.participants', event.participants);
-        toggleDisableField(modal, '.participants');
-        setValueBySelector(modal, '.description', event.description);
-        setValueBySelector(modal, '.edit-event-id', id)
-    }
-
     function showModalForm(cell) {
         removeModalForm();
         var modal = document.querySelector('.modal-form');
@@ -429,8 +401,42 @@
         ].join('.');
         toggleDisableField(clModal, '.date');
     }
+    function addEvent( cell ) {
+        const
+            day = getDayById(cell.dataset.id),
+            modal = cell.querySelector('.modal-form'),
+            eventName = getValueBySelector( modal, '.event' ),
+            participants = getValueBySelector(modal, '.participants'),
+            description = getValueBySelector(modal, '.description'),
+            editableEventId = getValueBySelector(modal, '.edit-event-id');
 
-    function _handleCellClick( cell ) {
+        let event = null;
+        if ( editableEventId ) {
+            event = day.events[editableEventId];
+            event.description = description;
+        } else {
+            day.events.push( {
+                name: eventName,
+                participants: participants,
+                description: description
+            } );
+        }
+        _saveToLS(day.date.getMonth());
+        drawCalendar(null, true);
+    }
+    function editEvent( cell, id ) {
+        const day = getDayById(cell.dataset.id);
+        const event = day.events[ id ];
+        showModalForm(cell);
+        const modal = cell.querySelector('.modal-form');
+        setValueBySelector(modal, '.event', event.name);
+        toggleDisableField(modal, '.event');
+        setValueBySelector(modal, '.participants', event.participants);
+        toggleDisableField(modal, '.participants');
+        setValueBySelector(modal, '.description', event.description);
+        setValueBySelector(modal, '.edit-event-id', id)
+    }
+    function handleCellClick( cell ) {
         if ( cell.className.indexOf( 'active' ) >=0 ) {
             removeModalForm();
             cell.className = cell.className.replace( ' active', '' );
@@ -444,19 +450,25 @@
         showModalForm(cell);
     }
 
+    function searchInput(event) {
+
+    }
+
     function _loadFromLS(date) {
-        var calendData = localStorage.getItem('calend_' + date.getMonth());
+        searchEvents = [];
+        const calendData = localStorage.getItem('calend_' + date.getMonth());
         if (!calendData) {
             return false;
         }
-        var normalizedData = JSON.parse(calendData);
-        var weeks = [];
-        for (var i=0;i<normalizedData.length;i++) {
-            var normalizedWeek = normalizedData[i];
-            var week = [];
-            for (var j=0;j<normalizedWeek.length;j++) {
-                var day = normalizedWeek[j];
-                week.push(new CalendarDay(new Date(day.date), day.events))
+        const normalizedData = JSON.parse(calendData);
+        const weeks = [];
+        for (let i=0;i<normalizedData.length;i++) {
+            const normalizedWeek = normalizedData[i];
+            const week = [];
+            for (let j=0;j<normalizedWeek.length;j++) {
+                const day = normalizedWeek[j];
+                week.push(new CalendarDay(new Date(day.date), day.events));
+                searchEvents = searchEvents.concat(day.events);
             }
             weeks.push(week);
         }
@@ -464,9 +476,8 @@
         drawCalendar(date.getMonth(), true);
         return true;
     }
-
     function _saveToLS(month) {
-        var serializedData = JSON.stringify(calendarItems);
+        const serializedData = JSON.stringify(calendarItems);
         localStorage.setItem('calend_' + month, serializedData);
     }
 
@@ -485,10 +496,10 @@
         document.addEventListener('click', function( event ) {
             const target = event.target;
             if (target.tagName.toLowerCase() === 'td') {
-                _handleCellClick(target);
+                handleCellClick(target);
             }
             if (['events', 'cell-number'].indexOf(target.className) >=0) {
-                _handleCellClick(target.parentElement);
+                handleCellClick(target.parentElement);
             }
 
             if (target.className.split(' ').indexOf('modal-close') >= 0) {
@@ -514,7 +525,8 @@
             </div>
             <div class="search">
                 <i></i>
-                <input type="text" placeholder="Событие, дата или участник">
+                <input type="text" placeholder="Событие, дата или участник" onchange="searchInput">
+                <div id="search-result" class="hidden"></div>
             </div>
         </div>
         <div class="container">
