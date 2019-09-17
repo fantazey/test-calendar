@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script type="application/javascript" src="index.js"></script>
     <title>Title</title>
     <style>
         body {
@@ -20,6 +19,9 @@
         }
         .search, .controls {
             display: inline-block;
+        }
+        .hidden {
+            display: none;
         }
         .search {
             float: right;
@@ -370,7 +372,9 @@
     }
 
     function removeModalForm() {
-        document.querySelectorAll('.calendar .modal-form').forEach(x => x.remove());
+        document.querySelectorAll('.calendar .modal-form').forEach(function(modal) {
+            modal.remove()
+        });
     }
 
     function addEvent( cell ) {
@@ -379,11 +383,18 @@
         var eventName = getValueBySelector( modal, '.event' );
         var participants = getValueBySelector(modal, '.participants');
         var description = getValueBySelector(modal, '.description');
-        day.events.push( {
-            name: eventName,
-            participants: participants,
-            description: description
-        } );
+        var editableEventId = getValueBySelector(modal, '.edit-event-id');
+        var event = null;
+        if ( editableEventId ) {
+            event = day.events[editableEventId];
+            event.description = description;
+        } else {
+            day.events.push( {
+                name: eventName,
+                participants: participants,
+                description: description
+            } );
+        }
         _saveToLS(day.date.getMonth());
         drawCalendar(null, true);
     }
@@ -398,7 +409,7 @@
         setValueBySelector(modal, '.participants', event.participants);
         toggleDisableField(modal, '.participants');
         setValueBySelector(modal, '.description', event.description);
-
+        setValueBySelector(modal, '.edit-event-id', id)
     }
 
     function showModalForm(cell) {
@@ -542,6 +553,7 @@
             <div class="field-container descr">
                 <textarea class="text-field description" placeholder="Описание"></textarea>
             </div>
+            <div class="hidden edit-event-id"><input type="hidden"></div>
             <button class="add-event">Готово</button>
             <button class="modal-close">Отмена</button>
         </form>
