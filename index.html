@@ -141,6 +141,18 @@
             border-radius: 4px;
             padding: 2px;
         }
+        #search-result {
+            display: none;
+            background-color: #fff;
+            margin-top: 10px;
+            border: 1px solid #9e9e9e;
+            min-height: 50px;
+            padding: 3px;
+            font-size: 12px;
+        }
+        .search-title {
+            font-weight: bold;
+        }
     </style>
 </head>
 <script type="application/javascript">
@@ -450,8 +462,46 @@
         showModalForm(cell);
     }
 
+    function hideSearchResult() {
+        const parent = document.querySelector('#search-result');
+        parent.innerHTML = '';
+        parent.style.display = 'none';
+    }
+    function showSearchResult(result) {
+        const parent = document.querySelector('#search-result');
+        let content = '';
+        result.map( e => {
+            content += [
+                '<div class="search-result">',
+                '<div class="search-title">',
+                e.name,
+                '</div>',
+                '<div class="search-description">',
+                e.description,
+                '</div>',
+                '</div>'
+            ].join('');
+        } );
+        parent.innerHTML = content;
+        parent.style.display = 'block'
+    }
     function searchInput(event) {
-
+        const field = document.querySelector('input#search');
+        const val = field.value.toLowerCase();
+        if (val.length > 3) {
+            const result = [];
+            searchEvents.forEach(e => {
+                if (e.name.toLowerCase().indexOf(val) >= 0 ||
+                    e.participants.toLowerCase().indexOf(val) >= 0 ||
+                    e.description.toLowerCase().indexOf(val) >= 0
+                ) {
+                    result.push(e);
+                }
+            });
+            showSearchResult(result);
+        } else {
+            hideSearchResult();
+        }
     }
 
     function _loadFromLS(date) {
@@ -493,7 +543,11 @@
         if (!_loadFromLS(today)) {
             drawCalendar();
         }
-        document.addEventListener('click', function( event ) {
+        const searchField = document.querySelector('input#search');
+        searchField.addEventListener('input', function(event) {
+            searchInput(event)
+        });
+        document.addEventListener('click', function(event) {
             const target = event.target;
             if (target.tagName.toLowerCase() === 'td') {
                 handleCellClick(target);
@@ -525,7 +579,7 @@
             </div>
             <div class="search">
                 <i></i>
-                <input type="text" placeholder="Событие, дата или участник" onchange="searchInput">
+                <input id="search" type="text" placeholder="Событие, дата или участник">
                 <div id="search-result" class="hidden"></div>
             </div>
         </div>
