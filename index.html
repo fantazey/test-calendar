@@ -87,6 +87,8 @@
         }
         div.events {
             height: 80%;
+            overflow: auto;
+            font-size: 10px
         }
         .modal-form {
             display: none;
@@ -254,8 +256,8 @@
         var now = new Date();
         var number = ( showDayOfWeek ? day.weekDay + ', ' : '' ) + day.date.getDate();
         var events = '<div class="events">';
-        day.events.forEach( function( value ) {
-            events += '<span class="event title">' + value.name + '</span>';
+        day.events.forEach( function( value, index ) {
+            events += '<span class="event title" data-event="' +index + '">' + value.name + '</span>';
             events += '<div class="event participants">' + value.participants + '</div>';
         } );
         events += '</div>';
@@ -308,7 +310,6 @@
     }
 
     function nextMonth() {
-        debugger
         var date = new Date();
         date.setMonth(date.getMonth() + 1);
         if (currentCalendarMonth) {
@@ -321,7 +322,6 @@
     }
 
     function prevMonth() {
-        debugger
         var date = new Date();
         date.setMonth(date.getMonth() - 1);
         if (currentCalendarMonth) {
@@ -346,6 +346,20 @@
             return node.value;
         }
         return def || '';
+    }
+
+    function setValueBySelector(src, selector, value) {
+        var node = src.querySelector(selector);
+        if ( node ) {
+            node.value = value;
+        }
+    }
+
+    function toggleDisableField(src, selector) {
+        var field = src.querySelector(selector);
+        if ( field ) {
+            field.disabled = !field.disabled;
+        }
     }
 
     function resetField(src, selector) {
@@ -374,15 +388,35 @@
         drawCalendar(null, true);
     }
 
+    function editEvent( cell, id ) {
+        var day = getDayById(cell.dataset.id);
+        var event = day.events[ id ];
+        showModalForm(cell);
+        var modal = cell.querySelector('.modal-form');
+        setValueBySelector(modal, '.event', event.name);
+        toggleDisableField(modal, '.event');
+        setValueBySelector(modal, '.participants', event.participants);
+        toggleDisableField(modal, '.participants');
+        setValueBySelector(modal, '.description', event.description);
+
+    }
+
     function showModalForm(cell) {
         removeModalForm();
         var modal = document.querySelector('.modal-form');
         var clModal = modal.cloneNode(true);
+        var day = getDayById(cell.dataset.id);
         cell.appendChild(clModal);
         var cellRect = cell.getClientRects();
         clModal.style.left = cellRect[0].left + cell.clientWidth + 5 + 'px';
         clModal.style.top = cellRect[0].top + 10 + 'px';
         clModal.style.display = 'block';
+        clModal.querySelector('input.input-field.date').value = [
+            day.date.getFullYear(),
+            1+day.date.getMonth(),
+            day.date.getDate()
+        ].join('.');
+        toggleDisableField(clModal, '.date');
     }
 
     function _handleCellClick( cell ) {
@@ -451,6 +485,10 @@
             }
             if (target.className.split(' ').indexOf('add-event') >=0) {
                 addEvent(target.parentElement.parentElement.parentElement);
+            }
+            if (target.className.split(' ').indexOf('title') >= 0 &&
+                target.className.split(' ').indexOf('event') >= 0 ) {
+                editEvent(target.parentElement.parentElement, target.dataset.event);
             }
         });
     }
